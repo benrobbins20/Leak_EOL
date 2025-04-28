@@ -4,12 +4,21 @@ import time, asyncio
 
 class DAQ():
     def __init__(self, test_time=5):
+        # test time in minutes
         self.test_time = test_time
         
         # store these in instance variables to access from front end
         self.initial_pressure = 0
         self.final_pressure = 0
         self.current_pressure = 0
+        self.run_flag = False
+        
+    def print_timer(self, time):
+        # use mod math to manually set the time
+        tot_seconds = self.test_time * 60
+        minutes = tot_seconds // 60
+        seconds = tot_seconds % 60
+        return f'{minutes:02d}:{seconds:02d}'
         
         
     def calc_pressure(self, adc_volts):

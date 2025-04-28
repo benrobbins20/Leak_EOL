@@ -28,11 +28,11 @@ class EolUI(QMainWindow):
 
         
         
-        # configure daq library
-        
+        # setup daq library
         self.daq = DAQ()
         self.pressure_data = [0] * 150
         self.current_pressure = 0
+        self.test_time = self.daq.test_time
         
         
         # timer for chart
@@ -42,8 +42,9 @@ class EolUI(QMainWindow):
         
         # timer for test
         self.test_timer = QTimer(self)
-        self.test_timer.timeout.connect(self.update_test)
+        self.test_timer.timeout.connect(lambda: asyncio.create_task(self.update_test()))
         self.test_timer.start(1000)
+        
         
         
  
@@ -123,9 +124,11 @@ class EolUI(QMainWindow):
         self.final_pressure_label = QLabel(f"Final Pressure: {self.daq.final_pressure} PSI")
         self.final_pressure_label.setStyleSheet("font-size: 16px;")
         self.difference_label = QLabel(f"Difference: {self.daq.final_pressure - self.daq.initial_pressure} PSI")
-        self.timer_label = QLabel("Test Timer: 0:00")
+        self.timer_label = QLabel(f"Test Timer: {self.test_time} minutes")
         self.timer_label.setStyleSheet("font-size: 16px;")
-        
+        self.test_running = QLabel("Test Running: False")
+        self.test_running.setStyleSheet("font-size: 16px;")
+        # self.test_running.setText(f"Test Running: {self.daq.run_flag}")
         
         # add the widgets to the right layout
         right_layout.addWidget(self.right_label, Qt.AlignTop)
@@ -142,8 +145,9 @@ class EolUI(QMainWindow):
         start_button_layout.addSpacing(20)
         start_button_layout.addWidget(self.timer_label)
         start_button_layout.addSpacing(20)
+        start_button_layout.addWidget(self.test_running)
+        start_button_layout.addSpacing(20)
         right_layout.addLayout(start_button_layout, Qt.AlignTop) # add test layout within the right_layout
-        
         
         # place layout items in widget
         right_widget = QWidget()
@@ -162,27 +166,24 @@ class EolUI(QMainWindow):
         self.current_pressure = await self.get_pressure()
         self.pressure_label.setText(f"Pressure: {self.current_pressure} PSI")  # Update the label with the current pressure
         
-    # def update_timer(self):
-    #     self.timer.timeout.connect(self.update_pressure)
-        
-        
-            
     # use circular buffer to update the chart on with update_series callback
     async def update_series(self):
-        self.pressure_data.pop(0)  # Remove the first (oldest) element from the data list
-        data_point = await self.daq.get_sample()  # Get a new sample from the DAQ
-        self.pressure_data.append(data_point)  # Append a new random integer to the data list
-
+        # pressure_data is a circular buffer, pop oldest and append newest
+        self.pressure_data.pop(0) 
+        data_point = await self.daq.get_sample()
+        self.pressure_data.append(data_point)  
         self.data.clear()  # Clear the current series
         for i, value in enumerate(self.pressure_data):
-            self.data.append(QPointF(i, value))  # Add new data points to the series
+            self.data.append(QPointF(i, value)) # enumerate pulls index and y value out
             
-    def update_test(self):
+    async def update_test(self):
         # update the test results
         self.initial_pressure_label.setText(f"Initial Pressure: {self.daq.initial_pressure} PSI")
         self.final_pressure_label.setText(f"Final Pressure: {self.daq.final_pressure} PSI")
-        self.difference_label.setText(f"Difference: {self.daq.final_pressure - self.daq.initial_pressure} PSI")
-        
+        self.difference_label.setText(f"Difference: {self.daq.initial_pressure - self.daq.final_pressure} PSI")
+        self.test_time -= 1
+        new_time = await self.daq.print_timer(self.test_time)
+        self.timer_label.setText(f"Test Timer: {new_time} minutes")
     
     # threshold line for pressure drop
     def add_horizontal_line(self, chart, y_value, x_start, x_end):
