@@ -33,7 +33,7 @@ end
 # Unset irrelevant variables.
 deactivate nondestructive
 
-set -gx VIRTUAL_ENV /home/eol-rpi4/Desktop/eol-dev/eol
+set -gx VIRTUAL_ENV /home/eol-rpi4/Leak_EOL/eol
 
 set -gx _OLD_VIRTUAL_PATH $PATH
 set -gx PATH "$VIRTUAL_ENV/"bin $PATH

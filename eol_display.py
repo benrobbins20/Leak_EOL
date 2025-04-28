@@ -9,7 +9,7 @@ import asyncio
 
 import os
 # os.system("systemctl stop lightdm") # stop the display manager
-os.environ["QT_QPA_PLATFORM"] = "linuxfb" 
+# os.environ["QT_QPA_PLATFORM"] = "linuxfb" 
 
 
 
@@ -41,9 +41,9 @@ class EolUI(QMainWindow):
         self.timer.start(1000)  # update every 500ms (adjust as needed)
         
         # timer for test
-        # self.test_timer = QTimer(self)
-        # self.test_timer.timeout.connect(self.update_test)
-        # self.test_timer.start(1000)
+        self.test_timer = QTimer(self)
+        self.test_timer.timeout.connect(self.update_test)
+        self.test_timer.start(1000)
         
         
  
@@ -196,13 +196,10 @@ class EolUI(QMainWindow):
             line_series.attachAxis(axis)
         for axis in chart.axes(Qt.Vertical):
             line_series.attachAxis(axis)
-    
-    def cleanup(self):
-        # Stop the timers when the window is closed
-        os.system("systemctl start lightdm") # restart the display manager
-        self.timer.stop()
-        self.test_timer.stop()
-        super().cleanup()
+
+    # def closeEvent(self, a0):
+    #     os.system("systemctl start lightdm") # restart the display manager
+    #     return super().closeEvent(a0)
         
     
 
