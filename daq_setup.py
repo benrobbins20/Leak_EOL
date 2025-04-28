@@ -9,12 +9,10 @@ class DAQ():
         # store these in instance variables to access from front end
         self.initial_pressure = 0
         self.final_pressure = 0
-        
-        self.current_pressure = asyncio.run(self.take_sample())
+        self.current_pressure = 0
         
         
     def calc_pressure(self, adc_volts):
-        
         return ((adc_volts - .5) / 4) * 30
     
     
@@ -27,8 +25,8 @@ class DAQ():
         adc /= 5
         return adc
 
-    def get_sample(self): # async runner 
-        adc = asyncio.run(self.take_sample())
+    async def get_sample(self): # async runner 
+        adc = await self.take_sample()
         return round(self.calc_pressure(adc), 2)
 
     async def test_timer(self, minutes):
@@ -59,9 +57,10 @@ class DAQ():
 
     def run(self, request):
         
+        # request 1 takes a sample
         if request == '1':
             print("taking sample")
-            adc =  asyncio.run(self.take_sample())
+            adc =  asyncio.create_task(self.take_sample())
             print(f"ADC: {adc:.2f}")
             pressure = self.calc_pressure(adc)
             return pressure
@@ -69,12 +68,7 @@ class DAQ():
             
         elif request == '2':
             print("Starting test")
-            asyncio.run(self.test1())
+            asyncio.create_task(self.test1())
 
-           
-        
-        # print("Starting test...")
-        # asyncio.run(self.test1())
-        
         
     
