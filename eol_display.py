@@ -8,8 +8,8 @@ from qasync import QEventLoop
 import asyncio
 
 import os
-# os.system("systemctl stop lightdm") # stop the display manager
-# os.environ["QT_QPA_PLATFORM"] = "linuxfb" 
+os.system("systemctl stop lightdm") # stop the display manager
+os.environ["QT_QPA_PLATFORM"] = "linuxfb" 
 
 
 
@@ -26,14 +26,11 @@ class EolUI(QMainWindow):
         self.setWindowTitle("Leak test EOL")
         self.data = QLineSeries() # for the front end chart
 
-        
-        
         # setup daq library
-        self.daq = DAQ()
-        self.pressure_data = [0] * 150
+        self.daq = DAQ(1) # 30 minute test
+        self.tot_seconds = self.daq.test_time * 60
+        self.pressure_data = [0] * self.tot_seconds
         self.current_pressure = 0
-        self.test_time = self.daq.test_time
-        
         
         # timer for chart
         self.timer = QTimer(self)
@@ -67,7 +64,7 @@ class EolUI(QMainWindow):
         x_axis.setTitleText("Time (s)")
         leak_chart.addAxis(x_axis, Qt.AlignBottom)
         self.data.attachAxis(x_axis)
-        x_axis.setRange(0, 150)
+        x_axis.setRange(0, self.tot_seconds)
         
         # y axis pressure
         y_axis = QValueAxis()
@@ -124,11 +121,13 @@ class EolUI(QMainWindow):
         self.final_pressure_label = QLabel(f"Final Pressure: {self.daq.final_pressure} PSI")
         self.final_pressure_label.setStyleSheet("font-size: 16px;")
         self.difference_label = QLabel(f"Difference: {self.daq.final_pressure - self.daq.initial_pressure} PSI")
-        self.timer_label = QLabel(f"Test Timer: {self.test_time} minutes")
+        self.difference_label.setStyleSheet("font-size: 16px;")
+        format_time = await self.daq.print_timer(self.tot_seconds)
+        self.timer_label = QLabel(f"Test Timer: {format_time} minutes")
         self.timer_label.setStyleSheet("font-size: 16px;")
         self.test_running = QLabel("Test Running: False")
-        self.test_running.setStyleSheet("font-size: 16px;")
-        # self.test_running.setText(f"Test Running: {self.daq.run_flag}")
+        self.test_running.setStyleSheet("background-color: red; color: white; font-size: 16px; border: 1px solid black;")
+        self.test_running.setText(f"Test Running: {self.daq.run_flag}")
         
         # add the widgets to the right layout
         right_layout.addWidget(self.right_label, Qt.AlignTop)
@@ -166,7 +165,7 @@ class EolUI(QMainWindow):
         self.current_pressure = await self.get_pressure()
         self.pressure_label.setText(f"Pressure: {self.current_pressure} PSI")  # Update the label with the current pressure
         
-    # use circular buffer to update the chart on with update_series callback
+    # use circular buffer to continuously update the chart on with update_series callback
     async def update_series(self):
         # pressure_data is a circular buffer, pop oldest and append newest
         self.pressure_data.pop(0) 
@@ -181,9 +180,22 @@ class EolUI(QMainWindow):
         self.initial_pressure_label.setText(f"Initial Pressure: {self.daq.initial_pressure} PSI")
         self.final_pressure_label.setText(f"Final Pressure: {self.daq.final_pressure} PSI")
         self.difference_label.setText(f"Difference: {self.daq.initial_pressure - self.daq.final_pressure} PSI")
-        self.test_time -= 1
-        new_time = await self.daq.print_timer(self.test_time)
-        self.timer_label.setText(f"Test Timer: {new_time} minutes")
+        
+        # update the test timer only if run flag is true
+        if self.daq.run_flag:
+            self.tot_seconds -= 1
+            if self.tot_seconds >= 0:
+                new_time = await self.daq.print_timer(self.tot_seconds)
+                self.timer_label.setText(f"Test Timer: {new_time} minutes")
+            self.test_running.setStyleSheet("background-color: green; color: white; font-size: 16px; border: 1px solid black;")
+            self.test_running.setText(f"Test Running: {self.daq.run_flag}")
+        else:
+            # format_time = await self.daq.print_timer(self.tot_seconds)
+            # self.timer_label = QLabel(f"Test Timer: {format_time} minutes")
+            self.test_running.setStyleSheet("background-color: red; color: white; font-size: 16px; border: 1px solid black;")
+            self.test_running.setText(f"Test Running: {self.daq.run_flag}")
+        
+        
     
     # threshold line for pressure drop
     def add_horizontal_line(self, chart, y_value, x_start, x_end):
@@ -192,7 +204,7 @@ class EolUI(QMainWindow):
         line_series.append(x_end, y_value)    
         chart.addSeries(line_series)
         
-        
+        # must attach the line points to the chart axes
         for axis in chart.axes(Qt.Horizontal):
             line_series.attachAxis(axis)
         for axis in chart.axes(Qt.Vertical):
@@ -201,9 +213,6 @@ class EolUI(QMainWindow):
     # def closeEvent(self, a0):
     #     os.system("systemctl start lightdm") # restart the display manager
     #     return super().closeEvent(a0)
-        
-    
-
         
 if __name__ == "__main__":
     # Create the application and the main window
