@@ -13,11 +13,10 @@ class DAQ():
         self.current_pressure = 0
         self.run_flag = False
         
-    def print_timer(self, time):
+    async def print_timer(self, time_s):
         # use mod math to manually set the time
-        tot_seconds = self.test_time * 60
-        minutes = tot_seconds // 60
-        seconds = tot_seconds % 60
+        minutes = time_s // 60
+        seconds = time_s % 60
         return f'{minutes:02d}:{seconds:02d}'
         
         
@@ -47,9 +46,9 @@ class DAQ():
             test_time = self.test_time
         a = await self.take_sample()
         self.initial_pressure = self.calc_pressure(a)
-        await asyncio.sleep(300)
+        await asyncio.sleep(self.test_time * 60)
         b = await self.take_sample()
-        
+        self.run_flag = False
         self.final_pressure = self.calc_pressure(b)
         print(f"Initial: {a:.2f} Final: {b:.2f}")
         print(f"Difference: {a-b:.2f}")
@@ -61,7 +60,7 @@ class DAQ():
             pressure = self.calc_pressure(adc_volts)
             print(f"Pressure: {pressure:.2f} PSI")
             time.sleep(1)
-
+        
 
 
     def run(self, request):
@@ -77,7 +76,9 @@ class DAQ():
             
         elif request == '2':
             print("Starting test")
+            self.run_flag = True
             asyncio.create_task(self.test1())
+            
 
         
     
